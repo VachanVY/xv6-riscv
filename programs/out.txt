@@ -1,0 +1,5 @@
+a.out
+execc.c
+forkexec.c
+forkk.c
+out.txt
