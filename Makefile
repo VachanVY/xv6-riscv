@@ -5,7 +5,7 @@ OBJS = \
   $K/entry.o \
   $K/start.o \
   $K/console.o \
-  $K/printf.o \
+  $K/printk.o \
   $K/uart.o \
   $K/kalloc.o \
   $K/spinlock.o \
@@ -56,13 +56,17 @@ QEMU = qemu-system-riscv64
 MIN_QEMU_VERSION = 7.2
 
 CC = $(TOOLPREFIX)gcc
-AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
+# Deterministic builds.
+DETFLAGS = -ffile-prefix-map=$(CURDIR)=.
+
 CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS += $(DETFLAGS)
 CFLAGS += -march=rv64gc
+CFLAGS += -std=gnu99
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding
@@ -92,7 +96,7 @@ $K/kernel: $(OBJS) $K/kernel.ld
 	$(OBJDUMP) -t $K/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel.sym
 
 $K/%.o: $K/%.S
-	$(CC) -march=rv64gc -g -c -o $@ $<
+	$(CC) -march=rv64gc -g $(DETFLAGS) -c -o $@ $<
 
 tags: $(OBJS)
 	etags kernel/*.S kernel/*.c
@@ -145,6 +149,7 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_sync\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -193,3 +198,7 @@ check-qemu-version:
 		echo "ERROR: Need qemu version >= $(MIN_QEMU_VERSION)"; \
 		exit 1; \
 	fi
+
+.PHONY: fmt
+fmt:
+	clang-format -i $(wildcard kernel/*.[ch] user/*.[ch] mkfs/*.c)
